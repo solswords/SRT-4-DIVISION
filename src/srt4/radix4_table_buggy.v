@@ -99,7 +99,7 @@ wire d_1110_q_neg1 = (d_1110 & x_ge_neg22 & ~x_ge_neg8 ) ;
 wire d_1110_q_neg2 = (d_1110 & ~x_ge_neg22  ) ;
 
 wire d_1111_q_2 = (d_1111 & x_ge_24 ) ;
-wire d_1111_q_1 = (d_1111 & x_ge_8 & ~x_ge_24 ) ;
+wire d_1111_q_1 = (d_1111 & x_ge_8 & ~x_ge_20 ) ;
 wire d_1111_q_0 = (d_1111 & x_ge_neg8 & ~x_ge_8 ) ;
 wire d_1111_q_neg1 = (d_1111 & x_ge_neg24 & ~x_ge_neg8 ) ;
 wire d_1111_q_neg2 = (d_1111 & ~x_ge_neg24  ) ;
