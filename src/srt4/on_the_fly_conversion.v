@@ -24,19 +24,23 @@ wire q_in_000 = (q_in[1:0] == 2'b00);
 wire q_in_101 = (q_in == 3'b101);
 wire q_in_110 = (q_in == 3'b110);
 
-wire active = (state_in ==2'b01);
-
-wire[31:0] qm_next = (active & q_in_010 ) ? {q_reg[29:0] , 2'b01 } :
-						(active & q_in_001) ? {q_reg[29:0] , 2'b00 } :
-							(active & q_in_000) ? {qm_reg[29:0] , 2'b11 } :
-								(active & q_in_101 )? {qm_reg[29:0] , 2'b10 } :
-									(active & q_in_110) ? {qm_reg[29:0] , 2'b01 } : 32'b0;
-wire[31:0] q_next  = (active & q_in_010) ? {q_reg[29:0] , 2'b10 } :
-						(active & q_in_001) ? {q_reg[29:0] , 2'b01 } :
-							(active & q_in_000) ? {q_reg[29:0] , 2'b00 } :
-								(active & q_in_101) ? {qm_reg[29:0] , 2'b11 } :
-									(active & q_in_110) ? {qm_reg[29:0] , 2'b10 } : 32'b0;
-
+wire active = (state_in == 2'b01);
+wire hold   = (state_in == 2'b10);
+   
+wire[31:0] qm_next = hold ? qm_reg :
+	   (active & q_in_010 ) ? {q_reg[29:0] , 2'b01 } :
+	   (active & q_in_001) ? {q_reg[29:0] , 2'b00 } :
+	   (active & q_in_000) ? {qm_reg[29:0] , 2'b11 } :
+	   (active & q_in_101 )? {qm_reg[29:0] , 2'b10 } :
+	   (active & q_in_110) ? {qm_reg[29:0] , 2'b01 } : 32'b0;
+   
+wire[31:0] q_next  = hold ? q_reg :
+	   (active & q_in_010) ? {q_reg[29:0] , 2'b10 } :
+	   (active & q_in_001) ? {q_reg[29:0] , 2'b01 } :
+	   (active & q_in_000) ? {q_reg[29:0] , 2'b00 } :
+	   (active & q_in_101) ? {qm_reg[29:0] , 2'b11 } :
+	   (active & q_in_110) ? {qm_reg[29:0] , 2'b10 } : 32'b0;
+   
 
 always @(posedge clk , negedge rst_n )
 begin

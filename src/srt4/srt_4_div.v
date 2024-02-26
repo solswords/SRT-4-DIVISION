@@ -18,7 +18,7 @@ input[DW-1:0] 		divisor,
 
 output[DW-1:0] 		quotient,
 output[DW-1:0] 		reminder,
-output				mulfinish,
+output				divfinish,
 output				diverror
 
 );
@@ -45,12 +45,14 @@ pre_processing u1(
 
 wire[DW+3:0]			w_0_4 = dividend_star[DW+3:0]; 
 
-localparam				idle = 2'b00 , div = 2'b01 , finish = 2'b10 , error = 2'b11 ;
+   localparam				idle = 2'b00 , div = 2'b01 , hold = 2'b10 , finish = 2'b11 ;
 reg[1:0]				state , state_next ;
 reg[DW/4:0]	   			counter , counter_next ;
 reg[DW+3:0] 		    w_reg,w_temp;
 reg[DW+3:0] 		    divisor_reg,divisor_temp;
-reg[DW/2-1:0] 			iterations_temp,iterations_reg,recovery_temp,recovery_reg;	
+reg[DW/2-1:0] 			iterations_temp,iterations_reg,recovery_temp,recovery_reg;
+   reg 				divbyzero_reg, divbyzero_temp;
+   
 
 wire[1:0]				state_in = state ;
 
@@ -112,7 +114,7 @@ begin
 		w_reg   <= 0 ;
 		iterations_reg <= 0;
 		recovery_reg <= 0;
-	
+	        divbyzero_reg <= 0;
 	end
 	else
 	begin
@@ -122,8 +124,7 @@ begin
 		w_reg   <= w_temp ;
 		iterations_reg <= iterations_temp;
 		recovery_reg <= recovery_temp;
-
-
+         	divbyzero_reg <= divbyzero_temp;
 	end
 end
 
@@ -133,7 +134,7 @@ begin
 	case(state)
 		idle : 
 		begin
-			if (start & ~dividend_eq_0_t & ~divisor_eq_0_t)
+			if (start & ~divisor_eq_0_t)
 			begin
 				state_next = div;
 				divisor_temp = {divisor_star , 1'b0} ;
@@ -141,25 +142,26 @@ begin
 				counter_next = 0;
 				iterations_temp = iterations;
 				recovery_temp = recovery;
-
+			        divbyzero_temp = 0;
 			end else 
-			if (start & dividend_eq_0_t)
-			begin
-				state_next = finish;
-				divisor_temp = 0  ;
-				w_temp = 0  ;
-				counter_next = 0;
-				iterations_temp = 0;
-				recovery_temp = 0;
-			end else
+			// if (start & dividend_eq_0_t)
+			// begin
+			// 	state_next = finish;
+			// 	divisor_temp = 0  ;
+			// 	w_temp = 0  ;
+			// 	counter_next = 0;
+			// 	iterations_temp = 0;
+			// 	recovery_temp = 0;
+			// end else
 			if (start & divisor_eq_0_t)
 			begin
-				state_next = error;
+				state_next = hold;
 				divisor_temp = 0  ;
 				w_temp = 0 ;
 				counter_next = 0;
 				iterations_temp = 0;
 				recovery_temp = 0;
+			        divbyzero_temp = 1;
 			end else
 			begin
 				state_next = idle;
@@ -168,8 +170,7 @@ begin
 				counter_next = 0;
 				iterations_temp = 0;
 				recovery_temp = 0;
-				
-				
+			        divbyzero_temp = 0;
 			end
 		end
 		
@@ -183,16 +184,17 @@ begin
 				counter_next = counter + 1'b1;
 				iterations_temp = iterations_reg;
 				recovery_temp = recovery_reg;
-				
+			        divbyzero_temp = 0;
 			end
 			else 
 				begin
-					state_next = finish;
+					state_next = (counter == 16) ? finish : hold;
 					w_temp = w_next_temp;
 					divisor_temp = divisor_reg ;
-					counter_next =  0;
+					counter_next =  counter + 1'b1;
 					iterations_temp = iterations_reg;
 					recovery_temp = recovery_reg;
+			                divbyzero_temp = 0;
 				end
 		    
 			end
@@ -205,16 +207,26 @@ begin
 			w_temp   = 0 ;
 			iterations_temp = 0;
 			recovery_temp = 0;
+		        divbyzero_temp = 0;
 		end
-		error:
-		begin
-			state_next = idle;
-			divisor_temp = 0;
+		hold:
+		  begin
+		     divisor_temp = divisor_reg;
+		     w_temp   = w_reg;
+		     iterations_temp = 0;
+		     recovery_temp = recovery_reg;
+		     divbyzero_temp = divbyzero_reg;
+		     if (counter == 16)
+		       begin
+			state_next = finish;
 			counter_next = 0 ;
-			w_temp   = 0;
-			iterations_temp = 0;
-			recovery_temp = 0;
-		end
+		       end
+		     else
+		       begin
+			  state_next = hold;
+			  counter_next = counter + 1'b1;
+		       end
+		  end
 	endcase
 end
 
@@ -223,9 +235,11 @@ wire[DW+3:0]   w_reg_fix = w_reg_unsign ? w_reg + divisor_real : w_reg ;
 wire[DW-1:0]   q_out_fix = w_reg_unsign ? q_out_1 - 1 : q_out_1 ;
 
 wire[DW+32:0]   reminder_temp = ({28'b0 , w_reg_fix} << recovery_reg);
+
+   
 assign reminder = reminder_temp[DW+32:DW+1];
 assign quotient	= q_out_fix;
-assign diverror  = (state == error) ;
-assign mulfinish = (state == finish) ;
+assign diverror  = divbyzero_reg;
+assign divfinish = (state == finish) ;
 
 endmodule
